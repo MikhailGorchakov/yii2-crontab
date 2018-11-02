@@ -1,0 +1,22 @@
+{
+	"name": "djiney/yii2-crontab",
+	"description": "Yii Framework 2.0 Component crontab manager",
+	"keywords": ["yii2", "crontab", "manager"],
+	"type": "yii2-extension",
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "Mikhail Gorchakov",
+			"email": "djineyx@gmail.com"
+		}
+	],
+	"require": {
+		"yiisoft/yii2": "*",
+		"php": "^7.0"
+	},
+	"autoload": {
+		"psr-4": {
+			"djiney\\crontab\\": "src"
+		}
+	}
+}
