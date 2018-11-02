@@ -4,6 +4,6 @@ class TestComponent
 {
 	public static function hello()
 	{
-		echo 'Hello, World!';
+		echo 'Hello, World deploy test 21!';
 	}
 }
