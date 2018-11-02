@@ -1,4 +1,4 @@
-<?php namespace djiney\crontab\migrations;
+<?php
 
 use yii\db\Migration;
 
