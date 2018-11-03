@@ -6,11 +6,15 @@ class m130524_201449_init extends Migration
 {
 	public function up()
 	{
-		echo 'Hello, migration UP!';
+		$this->createTable('{{%tasks}}', [
+			'id'   => $this->primaryKey(),
+			'name' => $this->string(70)->notNull(),
+			'date' => $this->dateTime()->notNull(),
+		]);
 	}
 
 	public function down()
 	{
-		echo 'Hello, migration DOWN!';
+		$this->dropTable('{{%tasks}}');
 	}
 }
