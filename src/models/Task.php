@@ -76,4 +76,20 @@ class Task extends ActiveRecord
 		return $task->save();
 	}
 
+	public static function getCount($name) : int
+	{
+		return self::find()
+			->where(['name' => $name])
+			->count();
+	}
+
+	public static function getLastDate(string $name)
+	{
+		$last = self::find()
+			->where(['name' => $name])
+			->orderBy(['date' => SORT_DESC])
+			->one();
+
+		return $last === null ? date('Y-m-d H:i:s') : $last->date;
+	}
 }

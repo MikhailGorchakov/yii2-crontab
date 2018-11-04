@@ -1,6 +1,5 @@
 <?php namespace djiney\crontab\controllers;
 
-use Cron\CronExpression;
 use djiney\crontab\components\Configuration;
 use djiney\crontab\components\traits\LogTrait;
 use djiney\crontab\models\Task;
@@ -11,9 +10,6 @@ class TaskManagerController extends Controller
 	use LogTrait;
 
 	const SLEEP_INTERVAL = 60;
-	const TASK_FORWARD = 10;
-
-	public $tasks;
 
 	/** @var Configuration */
 	private $_config;
@@ -50,10 +46,7 @@ class TaskManagerController extends Controller
 	 */
 	public function actionStartTasks()
 	{
-		var_dump($this->getConfig()->getTasks());
-
-
-		//$this->startTasks();
+		$this->startTasks();
 	}
 
 	/**
@@ -66,28 +59,22 @@ class TaskManagerController extends Controller
 
 	public function createTasks()
 	{
-		self::log('Добавление задач');
-
 		foreach ($this->getConfig()->getTasks() as $task) {
 
-			$forward = (int) (empty($data['task_forward']) ? self::TASK_FORWARD : $data['task_forward']);
-			$count = $forward - Task::count($task);
+			$expression = $task->getExpression();
+			$start = $task->getLastDate();
 
-			if ($count <= 0) {
-				continue;
-			}
-
-			$start = Task::time($task);
-
-			for ($i = 0; $i < $count; $i++) {
-
-				$start = $this->countInterval($task, $start);
-
+			for ($i = 0; $i < $task->required(); $i++) {
+				$date = $expression->getNextRunDate($start)->format('Y-m-d H:i:s');
 				Task::create([
 					'name' => $task,
-					'time' => $start
+					'date' => $date
 				]);
+
+				$start = $date;
 			}
+
+			exit;
 		}
 	}
 
