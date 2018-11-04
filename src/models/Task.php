@@ -1,5 +1,6 @@
 <?php namespace djiney\crontab\models;
 
+use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
 
 /**
@@ -48,6 +49,22 @@ class Task extends ActiveRecord
 	}
 
 	/**
+	 * @param null $name
+	 * @return \yii\db\ActiveQuery
+	 */
+	public static function getList($name = null) : ActiveQuery
+	{
+		$list = self::find()
+			->orderBy(['date' => SORT_ASC]);
+
+		if ($name) {
+			$list->where(['name' => $name]);
+		}
+
+		return $list;
+	}
+
+	/**
 	 * @return bool
 	 */
 	public function claim() : bool
@@ -59,6 +76,15 @@ class Task extends ActiveRecord
 		}
 
 		return $count === 1;
+	}
+
+	public function remove() : bool
+	{
+		try {
+			return $this->delete() === 1;
+		} catch (\Throwable $e) {
+			return false;
+		}
 	}
 
 	/**
@@ -91,5 +117,11 @@ class Task extends ActiveRecord
 			->one();
 
 		return $last === null ? date('Y-m-d H:i:s') : $last->date;
+	}
+
+	public static function getNewTasks() : ActiveQuery
+	{
+		return self::find()
+			->where(['<=', 'date', date('Y-m-d H:i:s')]);
 	}
 }

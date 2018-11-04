@@ -18,7 +18,7 @@ class Configuration extends Component
 				$data['name'] = $name;
 			}
 
-			$this->_tasks[] = new CronTask($data);
+			$this->_tasks[$name] = new CronTask($data);
 		}
 	}
 

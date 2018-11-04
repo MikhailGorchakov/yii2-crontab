@@ -1,9 +1,11 @@
 <?php namespace djiney\crontab\controllers;
 
 use djiney\crontab\components\Configuration;
+use djiney\crontab\components\CronTask;
 use djiney\crontab\components\traits\LogTrait;
 use djiney\crontab\models\Task;
 use yii\console\Controller;
+use yii\helpers\ArrayHelper;
 
 class TaskManagerController extends Controller
 {
@@ -57,283 +59,113 @@ class TaskManagerController extends Controller
 		$this->createTasks();
 	}
 
-	public function createTasks()
+	/**
+	 * All tasks with specified name are gonna be deleted
+	 * In case there is no name - all tasks
+	 *
+	 * @param string $name
+	 * php yii task-manager/reset-tasks [name]
+	 */
+	public function actionResetTasks($name = '')
+	{
+		if ($name == '') {
+			self::log('Removing tasks');
+			$count = Task::deleteAll();
+		} else {
+			self::log('Removing tasks with name: ' . $name);
+			$count = Task::deleteAll([
+				'name' => $name
+			]);
+		}
+
+		self::log('Tasks deleted: ' . $count);
+	}
+
+	/**
+	 * Showing tasks with specified name (or all tasks)
+	 *
+	 * @param string $name
+	 * php yii task-manager/show-tasks [name]
+	 */
+	public function actionShowTasks($name = null)
+	{
+		$list = Task::getList($name);
+
+		self::log('Total count: ' . $list->count());
+
+		/** @var Task $task */
+		foreach ($list->each() as $task) {
+			self::log($task->name . ' ' . $task->date);
+		}
+	}
+
+	protected function createTasks()
 	{
 		foreach ($this->getConfig()->getTasks() as $task) {
+
+			self::log('Task creation: ' . $task->name);
 
 			$expression = $task->getExpression();
 			$start = $task->getLastDate();
 
-			for ($i = 0; $i < $task->required(); $i++) {
+			$required = $task->required();
+			for ($i = 0; $i < $required; $i++) {
 				$date = $expression->getNextRunDate($start)->format('Y-m-d H:i:s');
 				Task::create([
-					'name' => $task,
+					'name' => $task->name,
 					'date' => $date
 				]);
 
 				$start = $date;
 			}
 
-			exit;
+			self::log(' -- created: ' . $required);
 		}
 	}
 
-
-
-
-
-
-
-
-
-
-
-
-	private function checkTasks()
+	protected function startTasks()
 	{
-		/** @var Task $task */
-		$tasks = Task::find()
-			->orderBy(['time' => SORT_ASC])
-			->all();
+		self::log('Launching tasks');
+
+		$tasks = $this->getConfig()->getTasks();
 
 		$queue = [];
 
-		foreach ($tasks as $task) {
-
-			if (empty($queue[$task->name])) {
-				$queue[$task->name] = [$task->time];
-				continue;
-			}
-
-			if (in_array($task->time, $queue[$task->name])) {
-				$task->delete();
-				continue;
-			} else {
-				$queue[$task->name][] = $task->time;
-			}
-		}
-	}
-
-	/**
-	 * Вывод в удобном виде всех задач с указанием времени выполнения, или же задач с определённым именем
-	 * @param string $name
-	 * php yii task-daemon/show-tasks [name]
-	 */
-	public function actionShowTasks($name = '')
-	{
-		while (true) {
-			$tasks = Task::find()
-				->orderBy(['time' => SORT_ASC]);
-
-			if (!empty($name)) {
-				$tasks->where(['name' => $name]);
-			}
-
-			$tasks = $tasks->all();
-
-			/** @var Task $task */
-			foreach ($tasks as $task) {
-				self::log($task->name.' '.date('Y-m-d H:i:s',$task->time));
-			}
-
-			if (empty($tasks)) {
-				self::log('Задач по этому имени не обнаружено');
-			}
-
-			sleep(10);
-			echo PHP_EOL.PHP_EOL;
-		}
-	}
-
-
-	/**
-	 * Удаление всех задач, или же задач с определённым именем
-	 * @param string $name
-	 * php yii task-daemon/reset-tasks [name]
-	 */
-	public function actionResetTasks($name = '')
-	{
-		if ($name == '') {
-			self::log('Удаление всех задач');
-			Task::deleteAll();
-		} else {
-			self::log('Удаление задач c именем: '.$name);
-			Task::deleteAll([
-				'name' => $name
-			]);
-		}
-	}
-
-	public function startTasks()
-	{
-		self::log('Выполнение задач');
-
-		$this->tasks = self::getTasks();
-
-		$this->checkTasks();
-
-		$tasks = Task::getNewTasks();
-
-		$queue = []; // Очередь задач
-
 		/** @var Task $task */
-		foreach ($tasks as $task) {
+		foreach (Task::getNewTasks()->each() as $task) {
 
-			if (!isset($this->tasks[$task->name])) {
-				$task->delete();
-				self::log('Команда отсутствует в конфиге: ' . $task->name);
+			/** @var CronTask $cronTask */
+			$cronTask = ArrayHelper::getValue($tasks, $task->name);
+			if ($cronTask === null) {
+				self::log('Configuration for a task is missing: ' . $task->name);
+				$task->remove();
 				continue;
 			}
 
-			$data = $this->tasks[$task->name];
-			self::log('Запуск команды: ' . $data['command']);
+			self::log('Launching: ' . $cronTask->command);
 
-			if (isset($data['queue']) && $data['queue'] == false) {
+			if ($cronTask->queue === false) {
 				if (in_array($task->name, $queue)) {
-					$task->delete();
+					$task->remove();
 					continue;
 				}
 
 				$queue[] = $task->name;
 			}
 
-			if (!empty($data['description'])) {
-				self::log('Задача: '.$data['description']);
-			}
-
-			$this->execInBackground($data);
+			$this->executeTask($cronTask);
 		}
 	}
 
-	/**
-	 * Запуск для теста задачи с определённым именем
-	 * @param string $name
-	 * php yii task-daemon/start-task [name]
-	 */
-	public function actionStartTask($name)
+	private function executeTask(CronTask $task) : bool
 	{
-		$this->execInBackground(['command' => $name . ' test']);
-	}
-
-	private function countInterval($task, $start)
-	{
-		$data = $this->tasks[$task];
-
-		$interval = (empty($data['interval']) ? [] : $data['interval']);
-
-		$interval = $this->checkInterval($interval);
-
-		$last_time = [
-			'year' => date('Y', $start),
-			'month' => date('n', $start),
-			'day' => date('j', $start),
-			'hour' => date('H', $start),
-			'minute' => date('i', $start),
-			//'week_day' => false, // Отдельная тема, не работает
-		];
-
-		$time = $last_time;
-
-		$mod = false;
-
-		foreach ($time as $key => $value) {
-			if ($key === 'minute' && $interval[$key] == '*') {
-				$time[$key]++;
-			} else {
-				$time[$key] = $this->parseIntervalValue($value, $interval[$key], $this->weights[$key], $mod);
-			}
-
-			if ($time[$key] != $last_time[$key]) {
-				$mod = true;
-			}
-		}
-
-		return mktime($time['hour'], $time['minute'], 0, $time['month'], $time['day'], $time['year']);
-	}
-
-	private function parseIntervalValue($value, $interval, $weight, $mod)
-	{
-		// *
-		if ($interval === '*') {
-			return $value;
-		}
-
-		// */4
-		if (strpos($interval, '*/') === 0) {
-			return $value + (int) str_replace('*/', '', $interval);
-		}
-
-		// 10
-		if ($interval == (string)((int)$interval)) {
-			if ($interval > $value || $mod) {
-				return $interval;
-			} else {
-				return $weight + $interval;
-			}
-		}
-
-		// 10, 40
-		if (strpos($interval, ',') !== false) {
-			$marks = explode(',', $interval);
-			$closest = $this->getClosest($marks, $value);
-
-			if ($closest > $value || $mod) {
-				return $closest;
-			} else {
-				return $weight + $closest;
-			}
-		}
-
-		return $value;
-	}
-
-	private function getClosest($array, $value)
-	{
-		asort($array);
-		$min = $array[0];
-
-		foreach ($array as $item) {
-			if ($value < $item) {
-				return $item;
-			}
-		}
-
-		return $min;
-	}
-
-	private function checkInterval($interval)
-	{
-		$default = [
-			'minute' => '*',
-			'hour' => '*',
-			'day' => '*',
-			'month' => '*',
-			'week_day' => '*',
-			'year' => '*'
-		];
-
-		foreach ($default as $key => $value) {
-
-			if (!isset($interval[$key])) {
-				$interval[$key] = $value;
-			}
-
-		}
-
-		return $interval;
-	}
-
-	private function execInBackground($data) {
-
-		$command = $data['command'];
-		$log = empty($data['log']) ? '/dev/null' : $data['log'];
-
 		if (substr(php_uname(), 0, 7) == 'Windows'){
-			self::log('Запущено - '.'start /B '. $command);
-			pclose(popen('start /B '. $command, 'r')); // Не работает, win 7
-		} else {
-			self::log('Запущено - '.$command . ' > '.$log.' &');
-			exec($command . ' > '.$log.' &');
+			self::log('Windows is not supported');
+			return false;
 		}
+
+		self::log('Launched - ' . $task->getCommand());
+		exec($task->getCommand());
+		return true;
 	}
 }

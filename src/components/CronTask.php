@@ -16,9 +16,9 @@ use yii\base\Model;
 class CronTask extends Model
 {
 	public $name;
+	public $executor = '*';
 	public $command;
-	public $log;
-	public $description;
+	public $log = '/dev/null';
 	public $queue = false;
 	public $taskForward = 10;
 	public $interval = [];
@@ -26,7 +26,7 @@ class CronTask extends Model
 	public function rules()
 	{
 		return [
-			[['name', 'command', 'log', 'description'], 'string'],
+			[['name', 'command', 'log', 'executor'], 'string'],
 			[['queue'], 'boolean'],
 			[['taskForward'], 'integer'],
 			[['interval'], 'safe'],
@@ -60,5 +60,10 @@ class CronTask extends Model
 	public function getLastDate()
 	{
 		return Task::getLastDate($this->name);
+	}
+
+	public function getCommand()
+	{
+		return $this->command . ' > ' . $this->log . ' &';
 	}
 }
