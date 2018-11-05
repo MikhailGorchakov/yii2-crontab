@@ -1,7 +1,7 @@
 # Yii2-crontab
 Extension for Yii2, which is helpful, when you don't want to edit your server cron configuration every time you add or delete a new cron task. Also can help with task distribution on multi-server systems.
 
-### Installing
+## Installing
 
 Composer installation
 
@@ -9,15 +9,21 @@ Composer installation
 composer require djiney/yii2-crontab dev-master
 ```
 
-### Configuration
+## Configuration
 
-At first, run migration using custom path
+You can find more specific information in code
+
+### Migration
+
+Just run base Yii2 migration with custom path
 
 ```
 php yii migrate/up --migrationPath=@vendor/djiney/yii2-crontab/src/migrations/
 ```
 
-Then, add controller class for your console application config:
+### Controller
+
+Add controller class for your console application config:
 
 ```
 'controllerMap' => [
@@ -27,7 +33,9 @@ Then, add controller class for your console application config:
 ],
 ```
 
-And specify configuration component:
+### Component
+
+Specify configuration component with tasks:
 ```
 'components' => [
    ...
@@ -54,7 +62,10 @@ Each task has it's own configuration template:
 ],
 ```
 
-And finally, don't forget to add cron-task to your server (you can add this command to all of your servers, tasks won't be duplicated)
+### Server cron
+
+Don't forget to add cron-task to your server (you can add this command to all of your servers, tasks won't be duplicated).
+
 ```
 * * * * * sudo -u nginx /var/www/html/yii task-manager/create-tasks >> /var/www/html/console/runtime/logs/create-tasks.log
 * * * * * sudo -u nginx /var/www/html/yii task-manager/start-tasks >> /var/www/html/console/runtime/logs/start-tasks.log
@@ -62,4 +73,8 @@ And finally, don't forget to add cron-task to your server (you can add this comm
 ```
 !! Space in the end of cron file is important !!
 
+On Centos 7 path to this file is usually
 
+```
+/var/spool/cron/root
+```
