@@ -142,6 +142,11 @@ class TaskManagerController extends Controller
 				continue;
 			}
 
+			if (!$task->claim()) {
+				self::log('Failed claiming');
+				continue;
+			}
+
 			self::log('Launching: ' . $cronTask->command);
 
 			if ($cronTask->queue === false) {

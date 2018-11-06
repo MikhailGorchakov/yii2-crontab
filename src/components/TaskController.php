@@ -5,6 +5,9 @@ use djiney\crontab\models\Task;
 use Yii;
 use yii\console\Controller;
 
+/**
+ * @deprecated DON'T USE THIS CLASS ANYMORE
+ */
 class TaskController extends Controller
 {
 	use LogTrait;
