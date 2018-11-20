@@ -19,6 +19,7 @@ class CronTask extends Model
 	public $executor = '*';
 	public $command;
 	public $log = '/dev/null';
+	public $enableCreation = true;
 	public $queue = false;
 	public $taskForward = 10;
 	public $interval = [];

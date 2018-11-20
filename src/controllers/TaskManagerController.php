@@ -103,6 +103,10 @@ class TaskManagerController extends Controller
 	{
 		foreach ($this->getConfig()->getTasks() as $task) {
 
+			if (!$task->enableCreation) {
+				continue;
+			}
+
 			self::log('Task creation: ' . $task->name);
 
 			$expression = $task->getExpression();
